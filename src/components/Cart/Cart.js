@@ -1,43 +1,118 @@
-import React, {useContext} from 'react';
+import React, { useContext, useState } from 'react';
 import Modal from '../UI/Modal';
 import CartContext from '../../store/cart-context';
 import CartItem from './CartItem';
+import Checkout from './Checkout';
 import classes from './Cart.module.css';
 
 const Cart = (props) => {
-    const CartCtx = useContext(CartContext);
+    const [isCheckout, setIsCheckout] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [didSubmit, setDidSubmit] = useState(false);
+    const cartCtx = useContext(CartContext);
 
-    const totalAmount = `$${CartCtx.totalAmount.toFixed(2)}`;
-    const hasItems = CartCtx.items.length > 0;
+    const totalAmount = `$${cartCtx.totalAmount.toFixed(2)}`;
+    const hasItems = cartCtx.items.length > 0;
 
-    const cartItemRemoveHandler = id => {
-        CartCtx.removeItem(id);
+    const cartItemRemoveHandler = (id) => {
+        cartCtx.removeItem(id);
     };
 
-    const cartItemAddHandler = item => {
-        CartCtx.addItem(item);
+    const cartItemAddHandler = (item) => {
+        cartCtx.addItem(item);
     };
 
-    const cartItems = <ul className={classes['cart-items']}>
-        {CartCtx.items.map(item => {
-        return (
-            <CartItem key={item.id} name={item.name} amount={item.amount} price={item.price}
-            onRemove={cartItemRemoveHandler.bind(null, item.id)} onAdd={cartItemAddHandler.bind(null, item)}/>
-        )
-    })}</ul>;
-    return (
-        <Modal onClick={props.onHideCard}>
+    const orderHandler = () => {
+        setIsCheckout(true);
+    };
+
+    const submitOrderHandler = async (userData) => {
+        setIsSubmitting(true);
+        await fetch(
+            'https://food-order-df3f4-default-rtdb.europe-west1.firebasedatabase.app/orders.json',
+            {
+                method: 'POST',
+                body: JSON.stringify({
+                    user: userData,
+                    orderedItems: cartCtx.items,
+                }),
+            }
+        );
+        setIsSubmitting(false);
+        setDidSubmit(true);
+        cartCtx.clearCart();
+    };
+
+    const cartItems = (
+        <ul className={classes['cart-items']}>
+            {cartCtx.items.map((item) => {
+                return (
+                    <CartItem
+                        key={item.id}
+                        name={item.name}
+                        amount={item.amount}
+                        price={item.price}
+                        onRemove={cartItemRemoveHandler.bind(null, item.id)}
+                        onAdd={cartItemAddHandler.bind(null, item)}
+                    />
+                );
+            })}
+        </ul>
+    );
+
+    const modalActions = (
+        <div className={classes.actions}>
+            <button
+                className={classes['button--alt']}
+                onClick={props.onHideCard}
+            >
+                close
+            </button>
+            {hasItems && (
+                <button className={classes.button} onClick={orderHandler}>
+                    Order
+                </button>
+            )}
+        </div>
+    );
+
+    const cartModalContent = (
+        <React.Fragment>
             {cartItems}
             <div className={classes.total}>
                 <span>Total Amount</span>
-                <span>{totalAmount}</span> 
+                <span>{totalAmount}</span>
             </div>
-            <div className={classes.actions}>
-                <button className={classes['button--alt']} onClick={props.onHideCard}>close</button>
-                {hasItems && <button className={classes.button}>Order</button>}
-            </div>
-        </Modal>
-    )
-}
+            {isCheckout && (
+                <Checkout
+                    onCancel={props.onHideCard}
+                    onConfirm={submitOrderHandler}
+                />
+            )}
+            {!isCheckout && modalActions}
+        </React.Fragment>
+    );
 
-export default Cart
+    const isSubmittingModalContent = <p>Sending order data...</p>;
+
+    const didSubmitModalContent = (
+        <React.Fragment>
+            <p>Successfully sent the order!</p>
+            <div className={classes.actions}>
+                <button className={classes.button} onClick={props.onHideCard}>
+                    close
+                </button>
+            </div>
+        </React.Fragment>
+    );
+
+    return (
+        <Modal onClick={props.onHideCard}>
+            {!isSubmitting && !didSubmit && cartModalContent}
+            {isSubmitting && isSubmittingModalContent}
+            {!isSubmitting && didSubmit && didSubmitModalContent}
+        </Modal>
+    );
+};
+
+export default Cart;

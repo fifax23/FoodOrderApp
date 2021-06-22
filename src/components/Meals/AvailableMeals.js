@@ -59,11 +59,11 @@ const AvailableMeals = () => {
     }
 
     if (isLoading) {
-        content = <p>Loading...</p>;
+        content = <p className={classes.mealsLoading}>Loading...</p>;
     }
 
     if (error) {
-        content = <p>Something went wrong...</p>;
+        content = <p className={classes.mealsError}>Something went wrong...</p>;
     }
 
     return (
